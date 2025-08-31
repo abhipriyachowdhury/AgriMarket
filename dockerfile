@@ -45,4 +45,5 @@ EXPOSE 8000
 
 # Start Flask app using Gunicorn
 # Change to APIwebScrapingPopUp:app if you prefer that file
-CMD ["gunicorn", "-w", "2", "-k", "uvicorn.workers.UvicornWorker", "APIwebScraping:app", "--bind", "0.0.0.0:8000"]
+CMD ["gunicorn", "-w", "2", "APIwebScraping:app", "--bind", "0.0.0.0:8000"]
+

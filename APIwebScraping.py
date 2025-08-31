@@ -1,128 +1,121 @@
 from flask import Flask, request, jsonify
 import json
 import time
-import os
 import requests
 from bs4 import BeautifulSoup
+from selenium import webdriver
+from selenium.webdriver.support.ui import Select
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
 from datetime import datetime, timedelta
-
+from selenium.webdriver.support import expected_conditions as EC
+import time
 
 def script(state, commodity, market):
     # URL of the website with the dropdown fields
     initial_url = "https://agmarknet.gov.in/SearchCmmMkt.aspx"
+
+    # Configure Chrome options for cloud deployment
+    from selenium.webdriver.chrome.options import Options
+    chrome_options = Options()
+    chrome_options.add_argument("--headless")
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--disable-dev-shm-usage")
+    chrome_options.add_argument("--disable-gpu")
+    chrome_options.add_argument("--window-size=1920,1080")
+    
+    # Use webdriver-manager for automatic driver management
+    from selenium.webdriver.chrome.service import Service
+    from webdriver_manager.chrome import ChromeDriverManager
+    
+    service = Service(ChromeDriverManager().install())
+    driver = webdriver.Chrome(service=service, options=chrome_options)
+    driver.set_page_load_timeout(30)
+    driver.implicitly_wait(10)
     
     try:
-        # Use requests to get the initial page
-        session = requests.Session()
-        
-        # Get the initial page to extract form data
-        response = session.get(initial_url, timeout=30)
-        response.raise_for_status()
-        
-        soup = BeautifulSoup(response.content, 'html.parser')
-        
-        # Extract viewstate and other form fields
-        viewstate = soup.find('input', {'name': '__VIEWSTATE'})['value']
-        viewstategenerator = soup.find('input', {'name': '__VIEWSTATEGENERATOR'})['value']
-        eventvalidation = soup.find('input', {'name': '__EVENTVALIDATION'})['value']
-        
-        # Get commodity options
-        commodity_dropdown = soup.find('select', {'id': 'ddlCommodity'})
-        commodity_options = {option.text: option['value'] for option in commodity_dropdown.find_all('option')}
-        
-        # Get state options
-        state_dropdown = soup.find('select', {'id': 'ddlState'})
-        state_options = {option.text: option['value'] for option in state_dropdown.find_all('option')}
-        
-        # Get market options (will be populated after state selection)
-        market_options = {}
-        
+        driver.get(initial_url)
+    except Exception as e:
+        driver.quit()
+        return {"error": f"Failed to load page: {str(e)}"}
+
+    try:
+        print("Commodity")
+        dropdown = Select(driver.find_element("id", 'ddlCommodity'))
+        dropdown.select_by_visible_text(commodity)
+
+        print("State")
+        dropdown = Select(driver.find_element("id", 'ddlState'))
+        dropdown.select_by_visible_text(state)
+
+        print("Date")
         # Calculate the date 7 days ago from today
         today = datetime.now()
         desired_date = today - timedelta(days=7)
-        date_str = desired_date.strftime('%d-%b-%Y')
+        date_input = driver.find_element(By.ID, "txtDate")
+        date_input.clear()
+        date_input.send_keys(desired_date.strftime('%d-%b-%Y'))
+
+        print("Click")
+        button = driver.find_element("id", 'btnGo')
+        button.click()
+
+        # Reduced wait time for cloud
+        time.sleep(2)
+
+        print("Market")
+        dropdown = Select(driver.find_element("id", 'ddlMarket'))
+        dropdown.select_by_visible_text(market)
+
+        print("Click")
+        button = driver.find_element("id", 'btnGo')
+        button.click()
+
+        # Reduced wait time for cloud
+        time.sleep(1)
         
-        # First POST: Select commodity and state
-        first_post_data = {
-            '__VIEWSTATE': viewstate,
-            '__VIEWSTATEGENERATOR': viewstategenerator,
-            '__EVENTVALIDATION': eventvalidation,
-            'ddlCommodity': commodity_options.get(commodity, ''),
-            'ddlState': state_options.get(state, ''),
-            'txtDate': date_str,
-            'btnGo': 'Go'
-        }
-        
-        response = session.post(initial_url, data=first_post_data, timeout=30)
-        response.raise_for_status()
-        
-        # Parse the response to get updated form fields and market options
-        soup = BeautifulSoup(response.content, 'html.parser')
-        
-        # Extract updated form fields
-        viewstate = soup.find('input', {'name': '__VIEWSTATE'})['value']
-        viewstategenerator = soup.find('input', {'name': '__VIEWSTATEGENERATOR'})['value']
-        eventvalidation = soup.find('input', {'name': '__EVENTVALIDATION'})['value']
-        
-        # Get market options after state selection
-        market_dropdown = soup.find('select', {'id': 'ddlMarket'})
-        if market_dropdown:
-            market_options = {option.text: option['value'] for option in market_dropdown.find_all('option')}
-        
-        # Second POST: Select market
-        second_post_data = {
-            '__VIEWSTATE': viewstate,
-            '__VIEWSTATEGENERATOR': viewstategenerator,
-            '__EVENTVALIDATION': eventvalidation,
-            'ddlCommodity': commodity_options.get(commodity, ''),
-            'ddlState': state_options.get(state, ''),
-            'ddlMarket': market_options.get(market, ''),
-            'txtDate': date_str,
-            'btnGo': 'Go'
-        }
-        
-        response = session.post(initial_url, data=second_post_data, timeout=30)
-        response.raise_for_status()
-        
-        # Parse the final response to extract data
-        soup = BeautifulSoup(response.content, 'html.parser')
-        
-        # Find the data table
-        table = soup.find('table', {'id': 'cphBody_GridPriceData'})
-        if not table:
-            return {"error": "Data table not found"}
-        
-        # Extract data from table
+    except Exception as e:
+        driver.quit()
+        return {"error": f"Failed during form interaction: {str(e)}"}
+
+    driver.implicitly_wait(10)
+    from selenium.webdriver.support.ui import WebDriverWait
+    from selenium.webdriver.support import expected_conditions as EC
+
+    try:
+        # Wait for the table to be present with reduced timeout
+        table = WebDriverWait(driver, 15).until(
+            EC.presence_of_element_located((By.ID, 'cphBody_GridPriceData'))
+        )
+        soup = BeautifulSoup(driver.page_source, 'html.parser')
+    except Exception as e:
+        driver.quit()
+        return {"error": f"Failed to load data table: {str(e)}"}
+
+    try:
         data_list = []
-        rows = table.find_all('tr')
-        
-        for row in rows:
-            cells = row.find_all(['td', 'th'])
-            if cells:
-                row_data = [cell.get_text(strip=True) for cell in cells]
-                if row_data and len(row_data) > 1:  # Skip empty rows
-                    data_list.append(row_data)
-        
-        # Process data (skip header rows)
+        # Iterate over each  row
+        for row in soup.find_all("tr"):
+            data_list.append(row.text.replace("\n", "_").replace("  ", "").split("__"))
+
         jsonList = []
-        for i, row_data in enumerate(data_list[2:], 1):  # Start from index 2 to skip headers
-            if len(row_data) >= 11:  # Ensure we have enough columns
-                d = {}
-                d["S.No"] = str(i)
-                d["City"] = row_data[1] if len(row_data) > 1 else ""
-                d["Commodity"] = row_data[3] if len(row_data) > 3 else ""
-                d["Min Prize"] = row_data[6] if len(row_data) > 6 else ""
-                d["Max Prize"] = row_data[7] if len(row_data) > 7 else ""
-                d["Model Prize"] = row_data[8] if len(row_data) > 8 else ""
-                d["Date"] = row_data[9] if len(row_data) > 9 else date_str
-                jsonList.append(d)
-        
+        for i in data_list[4:len(data_list) - 1]:
+            d = {}
+            d["S.No"] = i[1]
+            d["City"] = i[2]
+            d["Commodity"] = i[4]
+            d["Min Prize"] = i[7]
+            d["Max Prize"] = i[8]
+            d["Model Prize"] = i[9]
+            d["Date"] = i[10]
+            jsonList.append(d)
+
         return jsonList
         
-    except requests.exceptions.RequestException as e:
-        return {"error": f"Network error: {str(e)}"}
     except Exception as e:
-        return {"error": f"Failed to process data: {str(e)}"}
+        return {"error": f"Failed to parse data: {str(e)}"}
+    finally:
+        driver.quit()
 
 app = Flask(__name__)
 

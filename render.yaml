@@ -3,7 +3,9 @@ services:
     name: agrimarket-api
     env: python
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn APIwebScraping:app
+    startCommand: gunicorn --timeout 60 --workers 1 --bind 0.0.0.0:$PORT APIwebScraping:app
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0
+      - key: PYTHONUNBUFFERED
+        value: "1"

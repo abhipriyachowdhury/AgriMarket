@@ -43,7 +43,6 @@ COPY . .
 # Expose port
 EXPOSE 8000
 
-# Start Flask app using Gunicorn
-# Change to APIwebScrapingPopUp:app if you prefer that file
-CMD ["gunicorn", "-w", "2", "APIwebScraping:app", "--bind", "0.0.0.0:8000"]
-
+# Start Flask app using Gunicorn with extended timeout (120s)
+# Change to APIwebScrapingPopUp:app if you want popup version
+CMD ["gunicorn", "-w", "2", "-k", "uvicorn.workers.UvicornWorker", "APIwebScraping:app", "--bind", "0.0.0.0:8000", "--timeout", "120"]

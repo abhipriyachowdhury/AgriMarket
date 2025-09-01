@@ -38,40 +38,51 @@ def script(state, commodity, market):
     driver.get(initial_url)
 
     print("Commodity")
-    dropdown = Select(driver.find_element("id", 'ddlCommodity'))
-    dropdown.select_by_visible_text(commodity)
+    commodity_dropdown = WebDriverWait(driver, 20).until(
+    EC.presence_of_element_located((By.ID, "ddlCommodity"))
+    )
+    Select(commodity_dropdown).select_by_visible_text(commodity)
+
 
     print("State")
-    dropdown = Select(driver.find_element("id", 'ddlState'))
-    dropdown.select_by_visible_text(state)
+    state_dropdown = WebDriverWait(driver, 20).until(
+    EC.presence_of_element_located((By.ID, "ddlState"))
+    )
+    Select(state_dropdown).select_by_visible_text(state)
 
     print("Date")
     # Calculate the date 7 days ago from today
     today = datetime.now()
     desired_date = today - timedelta(days=7)
-    date_input = driver.find_element(By.ID, "txtDate")
+    date_input = WebDriverWait(driver, 20).until(
+    EC.presence_of_element_located((By.ID, "txtDate"))
+    )
     date_input.clear()
     date_input.send_keys(desired_date.strftime('%d-%b-%Y'))
 
     print("Click")
-    button = driver.find_element("id", 'btnGo')
-    button.click()
+    go_button = WebDriverWait(driver, 20).until(
+    EC.element_to_be_clickable((By.ID, "btnGo"))
+    )
+    go_button.click()
 
     time.sleep(3)
 
     print("Market")
-    dropdown = Select(driver.find_element("id", 'ddlMarket'))
-    dropdown.select_by_visible_text(market)
+    go_button = WebDriverWait(driver, 20).until(
+    EC.element_to_be_clickable((By.ID, "btnGo"))
+    )
+    go_button.click()
 
     print("Click")
-    button = driver.find_element("id", 'btnGo')
-    button.click()
+    go_button = WebDriverWait(driver, 20).until(
+    EC.element_to_be_clickable((By.ID, "btnGo"))
+    )
+    go_button.click()
 
     time.sleep(1)
 
     driver.implicitly_wait(10)
-    from selenium.webdriver.support.ui import WebDriverWait
-    from selenium.webdriver.support import expected_conditions as EC
 
     # Wait for the table to be present
     table = WebDriverWait(driver, 10).until(

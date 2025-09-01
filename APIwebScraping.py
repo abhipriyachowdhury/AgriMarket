@@ -4,6 +4,8 @@ import time
 import requests
 from bs4 import BeautifulSoup
 from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import Select
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -11,11 +13,28 @@ from datetime import datetime, timedelta
 from selenium.webdriver.support import expected_conditions as EC
 import time
 
+def get_driver():
+    chrome_options = Options()
+    chrome_options.add_argument("--headless")  
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--disable-dev-shm-usage")
+    chrome_options.add_argument("--disable-gpu")
+    chrome_options.add_argument("--disable-software-rasterizer")
+    chrome_options.add_argument("--remote-debugging-port=9222")
+    chrome_options.add_argument("--user-data-dir=/tmp/chrome-user-data")  # unique dir
+    chrome_options.add_argument("--window-size=1920,1080")
+
+    service = Service("/usr/bin/chromedriver")  # path inside Docker
+    driver = webdriver.Chrome(service=service, options=chrome_options)
+    return driver
+
 def script(state, commodity, market):
     # URL of the website with the dropdown fields
     initial_url = "https://agmarknet.gov.in/SearchCmmMkt.aspx"
 
-    driver = webdriver.Chrome()
+    from selenium.webdriver.chrome.options import Options
+
+    driver = get_driver()
     driver.get(initial_url)
 
     print("Commodity")

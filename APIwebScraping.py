@@ -4,8 +4,6 @@ import time
 import requests
 from bs4 import BeautifulSoup
 from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import Select
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -13,76 +11,48 @@ from datetime import datetime, timedelta
 from selenium.webdriver.support import expected_conditions as EC
 import time
 
-def get_driver():
-    chrome_options = Options()
-    chrome_options.add_argument("--headless")  
-    chrome_options.add_argument("--no-sandbox")
-    chrome_options.add_argument("--disable-dev-shm-usage")
-    chrome_options.add_argument("--disable-gpu")
-    chrome_options.add_argument("--disable-software-rasterizer")
-    chrome_options.add_argument("--remote-debugging-port=9222")
-    chrome_options.add_argument("--user-data-dir=/tmp/chrome-user-data")  # unique dir
-    chrome_options.add_argument("--window-size=1920,1080")
-
-    service = Service("/usr/bin/chromedriver")  # path inside Docker
-    driver = webdriver.Chrome(service=service, options=chrome_options)
-    return driver
-
 def script(state, commodity, market):
     # URL of the website with the dropdown fields
     initial_url = "https://agmarknet.gov.in/SearchCmmMkt.aspx"
 
-    from selenium.webdriver.chrome.options import Options
-
-    driver = get_driver()
+    driver = webdriver.Chrome()
     driver.get(initial_url)
 
     print("Commodity")
-    commodity_dropdown = WebDriverWait(driver, 20).until(
-    EC.presence_of_element_located((By.ID, "ddlCommodity"))
-    )
-    Select(commodity_dropdown).select_by_visible_text(commodity)
-
+    dropdown = Select(driver.find_element("id", 'ddlCommodity'))
+    dropdown.select_by_visible_text(commodity)
 
     print("State")
-    state_dropdown = WebDriverWait(driver, 20).until(
-    EC.presence_of_element_located((By.ID, "ddlState"))
-    )
-    Select(state_dropdown).select_by_visible_text(state)
+    dropdown = Select(driver.find_element("id", 'ddlState'))
+    dropdown.select_by_visible_text(state)
 
     print("Date")
     # Calculate the date 7 days ago from today
     today = datetime.now()
     desired_date = today - timedelta(days=7)
-    date_input = WebDriverWait(driver, 20).until(
-    EC.presence_of_element_located((By.ID, "txtDate"))
-    )
+    date_input = driver.find_element(By.ID, "txtDate")
     date_input.clear()
     date_input.send_keys(desired_date.strftime('%d-%b-%Y'))
 
     print("Click")
-    go_button = WebDriverWait(driver, 20).until(
-    EC.element_to_be_clickable((By.ID, "btnGo"))
-    )
-    go_button.click()
+    button = driver.find_element("id", 'btnGo')
+    button.click()
 
     time.sleep(3)
 
     print("Market")
-    go_button = WebDriverWait(driver, 20).until(
-    EC.element_to_be_clickable((By.ID, "btnGo"))
-    )
-    go_button.click()
+    dropdown = Select(driver.find_element("id", 'ddlMarket'))
+    dropdown.select_by_visible_text(market)
 
     print("Click")
-    go_button = WebDriverWait(driver, 20).until(
-    EC.element_to_be_clickable((By.ID, "btnGo"))
-    )
-    go_button.click()
+    button = driver.find_element("id", 'btnGo')
+    button.click()
 
     time.sleep(1)
 
     driver.implicitly_wait(10)
+    from selenium.webdriver.support.ui import WebDriverWait
+    from selenium.webdriver.support import expected_conditions as EC
 
     # Wait for the table to be present
     table = WebDriverWait(driver, 10).until(

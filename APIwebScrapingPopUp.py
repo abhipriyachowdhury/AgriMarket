@@ -1,55 +1,22 @@
-
 from flask import Flask, request, jsonify
 import json
 import time
+import requests
+from bs4 import BeautifulSoup
 from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import Select
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import NoSuchElementException
-from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
-
-def get_driver():
-    chrome_options = Options()
-    chrome_options.add_argument("--headless")  
-    chrome_options.add_argument("--no-sandbox")
-    chrome_options.add_argument("--disable-dev-shm-usage")
-    chrome_options.add_argument("--disable-gpu")
-    chrome_options.add_argument("--disable-software-rasterizer")
-    chrome_options.add_argument("--remote-debugging-port=9222")
-    chrome_options.add_argument("--user-data-dir=/tmp/chrome-user-data")  # unique dir
-    chrome_options.add_argument("--window-size=1920,1080")
-
-    service = Service("/usr/bin/chromedriver")  # path inside Docker
-    driver = webdriver.Chrome(service=service, options=chrome_options)
-    return driver
-
-def close_popup(driver):
-    try:
-        # Check if the popup is present
-        popup = driver.find_element(By.CLASS_NAME, 'popup-onload')
-        
-        # If the popup is present, click on the anchor tag with class 'close'
-        close_button = popup.find_element(By.CLASS_NAME, 'close')
-        close_button.click()
-        
-        print("Popup closed")
-    except NoSuchElementException:
-        print("Popup not found")
+from selenium.webdriver.support import expected_conditions as EC
+import time
 
 def script(state, commodity, market):
     # URL of the website with the dropdown fields
     initial_url = "https://agmarknet.gov.in/SearchCmmMkt.aspx"
 
-    driver = get_driver()
+    driver = webdriver.Chrome()
     driver.get(initial_url)
-
-    # Close the popup if it exists
-    close_popup(driver)
 
     print("Commodity")
     dropdown = Select(driver.find_element("id", 'ddlCommodity'))
@@ -60,6 +27,7 @@ def script(state, commodity, market):
     dropdown.select_by_visible_text(state)
 
     print("Date")
+    # Calculate the date 7 days ago from today
     today = datetime.now()
     desired_date = today - timedelta(days=7)
     date_input = driver.find_element(By.ID, "txtDate")
@@ -83,6 +51,9 @@ def script(state, commodity, market):
     time.sleep(1)
 
     driver.implicitly_wait(10)
+    from selenium.webdriver.support.ui import WebDriverWait
+    from selenium.webdriver.support import expected_conditions as EC
+
     # Wait for the table to be present
     table = WebDriverWait(driver, 10).until(
         EC.presence_of_element_located((By.ID, 'cphBody_GridPriceData'))
@@ -90,7 +61,7 @@ def script(state, commodity, market):
     soup = BeautifulSoup(driver.page_source, 'html.parser')
 
     data_list = []
-    # Iterate over each row
+    # Iterate over each  row
     for row in soup.find_all("tr"):
         data_list.append(row.text.replace("\n", "_").replace("  ", "").split("__"))
 
